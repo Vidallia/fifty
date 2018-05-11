@@ -1,6 +1,7 @@
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/print.hpp>
 #include <eosiolib/crypto.h>
+
 using namespace eosio;
 using eosio::key256;
 
@@ -26,7 +27,6 @@ public:
             prof.wins       = 0;
             prof.losses     = 0;
             prof.numb_games = 0;
-            prof.avg        = 0.0;
             prof.balance    = 100;
         });
 
@@ -74,11 +74,10 @@ private:
         uint32_t     wins;
         uint32_t     losses;
         uint32_t     numb_games;
-        float        avg;
         uint32_t     balance = 100;
 
         uint64_t primary_key()const { return account; }
-        EOSLIB_SERIALIZE(profile, (account)(wins)(losses)(numb_games)(avg)(balance))
+        EOSLIB_SERIALIZE(profile, (account)(wins)(losses)(numb_games)(balance))
     };
 
     typedef eosio::multi_index<N(profile), profile> profile_table;
@@ -92,7 +91,6 @@ private:
             acc.wins += 1;
             acc.numb_games += 1;
             acc.balance += (acc.account != _self) ? (bet * PAYMENT_MODIFIER) : bet;
-            acc.avg = (float)(acc.wins / acc.numb_games);
         });
 
         auto loser_accnt = profile.find(loser.account);
@@ -100,7 +98,6 @@ private:
             acc.losses += 1;
             acc.numb_games += 1;
             acc.balance -= (acc.account == _self) ? (bet * PAYMENT_MODIFIER) : bet;
-            acc.avg += (float)(acc.wins / acc.numb_games);
         });
 
         if (loser_accnt->balance == 0 && loser_accnt->account != _self) {
