@@ -1,6 +1,7 @@
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/print.hpp>
 #include <eosiolib/crypto.h>
+#include <eosiolib/contract.hpp>
 
 using namespace eosio;
 using eosio::key256;
@@ -18,9 +19,9 @@ public:
         require_auth(account);
         profile_table profile(_self,_self);
 
-        auto iter = profile.find(account);
+        auto acc_iter = profile.find(account);
         /* Assert that this account does not already exist */
-        eosio_assert(iter == profile.end(), "Account already exists.");
+        eosio_assert(acc_iter == profile.end(), "Account already exists.");
                                            /*Payer*/
         auto new_user_iter = profile.emplace(_self, [&](auto& prof) {
             prof.account    = account;
@@ -41,11 +42,11 @@ public:
         profile_table profile(_self,_self);
 
         auto fifty_acc = profile.find(_self);
-        auto iter = profile.find(account);
+        auto acc_iter = profile.find(account);
 
-        eosio_assert(iter != profile.end(), "Account does not exist.");
+        eosio_assert(acc_iter != profile.end(), "Account does not exist.");
         eosio_assert(fifty_acc != profile.end(), "Contract account does not exist.");
-        eosio_assert(iter->balance >= bet,  "Account has insufficient funds for this bet.");
+        eosio_assert(acc_iter->balance >= bet,  "Account has insufficient funds for this bet.");
         eosio_assert(fifty_acc->balance >= (bet * PAYMENT_MODIFIER), "Contract has insufficient funds to play with a bet that size.");
 
         /* Contract account, calculating a sha256 checksum */
@@ -53,16 +54,17 @@ public:
         sha256( (char *)&fifty_acc->account, sizeof(profile)*2, &fifty_res);
         /* Player account, calculating a sha256 checksum */
         checksum256 acc_res;
-        sha256( (char *)&iter->account, sizeof(profile)*2, &acc_res);
+        sha256( (char *)&acc_iter->account, sizeof(profile)*2, &acc_res);
 
+        /* Determining if contract account wins or the player*/
         int winner = ((fifty_res.hash[0] + fifty_res.hash[1]) < (acc_res.hash[0] + acc_res.hash[1])) ? 1 : 0;
 
         if (winner) {
-            pay_and_modify(*iter, *fifty_acc, bet);
+            pay_and_modify(*acc_iter, *fifty_acc, bet);
             print("Congrats! You won ", name{account});
         }
         else {
-            pay_and_modify(*fifty_acc, *iter, bet);
+            pay_and_modify(*fifty_acc, *acc_iter, bet);
             print("You lost :( Try again you just might get that sweet WIN!");
         }
     }
@@ -81,6 +83,7 @@ private:
     };
 
     typedef eosio::multi_index<N(profile), profile> profile_table;
+
 
 
     void pay_and_modify(const profile& winner, const profile& loser, const uint32_t bet) {
